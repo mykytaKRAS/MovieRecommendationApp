@@ -1,17 +1,23 @@
 using Microsoft.EntityFrameworkCore;
+using MovieRecommendationApp.API.Endpoints;
 using MovieRecommendationApp.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new() 
+    { 
+        Title = "Movie Recommendation API", 
+        Version = "v1",
+        Description = "API for movie recommendations with user ratings and lists"
+    });
+});
 
-// PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -24,7 +30,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -33,8 +38,19 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAll");
 
-app.MapGet("/", () => "Movie Recommendation API is running! 🎬");
+app.MapGet("/", () => "Movie Recommendation API is running! 🎬")
+    .WithName("Root");
+    
+app.MapGet("/health", () => Results.Ok(new 
+{ 
+    status = "healthy", 
+    timestamp = DateTime.UtcNow,
+    environment = app.Environment.EnvironmentName 
+}))
+    .WithName("HealthCheck");
 
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+app.MapUserEndpoints();
+app.MapMovieEndpoints();
+app.MapGenreEndpoints();
 
 app.Run();
